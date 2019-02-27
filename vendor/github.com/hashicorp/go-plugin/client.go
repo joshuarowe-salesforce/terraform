@@ -23,6 +23,7 @@ import (
 	"unicode"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/yamux"
 )
 
 // If this is 1, then we've called CleanupClients. This can be used
@@ -158,6 +159,49 @@ type ClientConfig struct {
 	// Logger is the logger that the client will used. If none is provided,
 	// it will default to hclog's default logger.
 	Logger hclog.Logger
+
+	// AutoMTLS has the client and server automatically negotiate mTLS for
+	// transport authentication. This ensures that only the original client will
+	// be allowed to connect to the server, and all other connections will be
+	// rejected. The client will also refuse to connect to any server that isn't
+	// the original instance started by the client.
+	//
+	// In this mode of operation, the client generates a one-time use tls
+	// certificate, sends the public x.509 certificate to the new server, and
+	// the server generates a one-time use tls certificate, and sends the public
+	// x.509 certificate back to the client. These are used to authenticate all
+	// rpc connections between the client and server.
+	//
+	// Setting AutoMTLS to true implies that the server must support the
+	// protocol, and correctly negotiate the tls certificates, or a connection
+	// failure will result.
+	//
+	// The client should not set TLSConfig, nor should the server set a
+	// TLSProvider, because AutoMTLS implies that a new certificate and tls
+	// configuration will be generated at startup.
+	//
+	// You cannot Reattach to a server with this option enabled.
+	AutoMTLS bool
+
+	// Specify some properties of the underlying connection, including keepalive.
+	ConnectionConfig *ConnectionConfig
+}
+
+// ConnectionConfig allows providing properties of an underlying connection
+// via the ClientConfig.ConnectionConfig field.
+type ConnectionConfig struct {
+	// EnableKeepalive is used to do a period keep alive
+	// messages using a ping.
+	EnableKeepAlive bool
+
+	// KeepAliveInterval is how often to perform the keep alive
+	KeepAliveInterval time.Duration
+
+	// ConnectionWriteTimeout is meant to be a "safety valve" timeout after
+	// we which will suspect a problem with the underlying connection and
+	// close it. This is only applied to writes, where's there's generally
+	// an expectation that things will move along quickly.
+	ConnectionWriteTimeout time.Duration
 }
 
 // ReattachConfig is used to configure a client to reattach to an
@@ -236,6 +280,15 @@ func CleanupClients() {
 
 	log.Println("[DEBUG] plugin: waiting for all plugin processes to complete...")
 	wg.Wait()
+}
+
+func DefaultConnectionConfig() (connectionConfig *ConnectionConfig) {
+	defaultYamuxConfig := yamux.DefaultConfig()
+	return &ConnectionConfig{
+		ConnectionWriteTimeout: defaultYamuxConfig.ConnectionWriteTimeout,
+		EnableKeepAlive:        defaultYamuxConfig.EnableKeepAlive,
+		KeepAliveInterval:      defaultYamuxConfig.KeepAliveInterval,
+	}
 }
 
 // Creates a new plugin client which manages the lifecycle of an external
