@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	plugin "github.com/hashicorp/go-plugin"
 	terraformProvider "github.com/hashicorp/terraform/builtin/providers/terraform"
@@ -356,10 +357,16 @@ func internalPluginClient(kind, name string) (*plugin.Client, error) {
 	cmdArgv := strings.Split(cmdLine, TFSPACE)
 
 	cfg := &plugin.ClientConfig{
-		Cmd:             exec.Command(cmdArgv[0], cmdArgv[1:]...),
-		HandshakeConfig: tfplugin.Handshake,
-		Managed:         true,
-		Plugins:         tfplugin.PluginMap,
+		Cmd:              exec.Command(cmdArgv[0], cmdArgv[1:]...),
+		HandshakeConfig:  tfplugin.Handshake,
+		Managed:          true,
+		Plugins:          tfplugin.PluginMap,
+		ConnectionConfig: plugin.DefaultConnectionConfig(),
+	}
+
+	if tfplugin.EnableDebugging {
+		cfg.ConnectionConfig.EnableKeepAlive = false
+		cfg.ConnectionConfig.ConnectionWriteTimeout = 365 * 84600 * time.Second
 	}
 
 	return plugin.NewClient(cfg), nil

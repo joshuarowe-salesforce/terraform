@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# This is a helper script to launch a Terraform provider inside the "dlv" debugger,
+# configured to await a remote debugging connection on port 2346. You can
+# then connect to it using the following command, or its equivalent in your
+# debugging frontend of choice:
+#    dlv connect 127.0.0.1:2346
+#
+# This tool does not install dlv. To install it, see its instructions:
+#    https://github.com/derekparker/delve/tree/master/Documentation/installation
+#
+# To use this script, rename the actual terraform provider to its name plus "-debug",
+# and ln -s this script into the original name of the terraform provider.  For example:
+#
+# mv ~/.terraform.d/plugins/terraform-provider-spinnaker ~/.terraform.d/plugins/terraform-provider-spinnaker-debug
+# ln -s ~/go/src/github.com/hashicorp/terraform/scripts/debug-terraform-provider ~/.terraform.d/plugins/terraform-provider-spinnaker
+# 
+# Then run "terraform init".
+set -e
+
+if [ "$TF_ENABLE_PROVIDER_DEBUGGING" = "0" ] ; then 
+    "$0-debug" "$@"
+else
+    dlv exec "$0-debug" --headless --listen :2346 --api-version 2 -- "$@" | tee ~/terraform-dlv-provider-output.txt | grep --line-buffered -E '^1\|'
+fi

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	tfplugin "github.com/hashicorp/terraform/plugin"
 	"github.com/hashicorp/terraform/tfdiags"
 
 	"github.com/hashicorp/go-getter"
@@ -51,6 +52,7 @@ func (c *ApplyCommand) Run(args []string) int {
 	cmdFlags.StringVar(&c.Meta.backupPath, "backup", "", "path")
 	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags.BoolVar(&tfplugin.EnableDebugging, "enable-plugin-debugging", false, "enable options for attaching to a debugger")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
@@ -248,6 +250,10 @@ Options:
                          a file. If "terraform.tfvars" or any ".auto.tfvars"
                          files are present, they will be automatically loaded.
 
+  -enable-plugin-debugging
+                         Enable attaching a debugger to provider processes
+                         without enforcing timeouts
+
 
 `
 	return strings.TrimSpace(helpText)
@@ -299,6 +305,9 @@ Options:
                          a file. If "terraform.tfvars" or any ".auto.tfvars"
                          files are present, they will be automatically loaded.
 
+  -enable-plugin-debugging
+                         Enable attaching a debugger to provider processes
+                         without enforcing timeouts
 
 `
 	return strings.TrimSpace(helpText)
